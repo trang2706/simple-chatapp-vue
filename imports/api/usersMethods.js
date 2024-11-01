@@ -1,5 +1,6 @@
 import { Meteor } from "meteor/meteor";
 import { check } from "meteor/check";
+import { MessagesCollection } from "./messagesCollection";
 
 async function insertUser({ username, password }) {
 	check(username, String);
@@ -33,4 +34,54 @@ async function getUsername(userId) {
 	if (user) return user.username;
 }
 
-Meteor.methods({ insertUser, getUsername });
+/**
+ * Get users who current user texted
+ *
+ * @param {*} userId
+ * @returns
+ */
+async function getUniqueReceivers(userId) {
+	if (!Meteor.userId()) {
+		throw new Meteor.Error("Not authorized.");
+	}
+
+	try {
+		// Get unique receiver IDs
+		const receiverIds = await MessagesCollection.rawCollection().distinct(
+			"receiverId",
+			{
+				senderId: userId,
+			}
+		);
+
+		// Get unique sender IDs
+		const senderIds = await MessagesCollection.rawCollection().distinct(
+			"senderId",
+			{
+				receiverId: userId,
+			}
+		);
+
+		// Combine both arrays and remove duplicates
+		let userIds = receiverIds.concat(senderIds);
+		userIds = userIds.filter((id, index) => userIds.indexOf(id) === index);
+
+		// Fetch user information for each receiverId
+		const users = Meteor.users
+			.find(
+				{ _id: { $in: userIds } },
+				{ fields: { username: 1, profile: 1, email: 1 } } // Adjust fields as needed
+			)
+			.fetch();
+
+		return users;
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+Meteor.methods({
+	insertUser,
+	getUsername,
+	getUniqueReceivers,
+});

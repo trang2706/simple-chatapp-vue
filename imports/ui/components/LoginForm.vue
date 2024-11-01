@@ -35,7 +35,7 @@ const register = () => {};
 				name="username"
 				placeholder="Username"
 				required
-				class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+				class="shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline w-60"
 			/>
 		</div>
 
@@ -51,14 +51,14 @@ const register = () => {};
 				name="password"
 				placeholder="Password"
 				required
-				class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+				class="shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline w-60"
 			/>
 		</div>
 
 		<div>
 			<button
 				type="submit"
-				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 mt-4 px-4 rounded focus:outline-none focus:shadow-outline w-40"
+				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 mt-4 px-4 rounded focus:outline-none focus:shadow-outline w-60"
 			>
 				Log in
 			</button>
@@ -66,11 +66,16 @@ const register = () => {};
 
 		<p class="text-red-500 pt-2" v-if="error">{{ error }}</p>
 
-		<div
-			class="cursor-pointer self-end pr-4 pt-2 hover:underline text-blue-500"
-			@click="$emit('createAccount')"
-		>
-			Create account
+		<div class="flex items-center px-4 pt-4 justify-end w-full">
+			<!-- <div class="cursor-pointer hover:underline text-blue-500">
+				Forgot your password?
+			</div> -->
+			<div
+				class="cursor-pointer self-end hover:underline text-blue-500"
+				@click="$emit('createAccount')"
+			>
+				Create account
+			</div>
 		</div>
 	</form>
 </template>

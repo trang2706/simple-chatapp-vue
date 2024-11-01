@@ -1,21 +1,34 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 
 const props = defineProps({
 	message: {
 		type: Object,
 		required: true,
 	},
+
+	preDate: {
+		type: Date,
+		required: true,
+	},
+
+	index: {
+		type: Number,
+	},
 });
 
 const messageRef = ref({ ...props.message });
 const username = ref("");
 
+onMounted(() => {
+	getUsername();
+});
+
 const getUsername = async () => {
 	try {
 		username.value = await Meteor.callAsync(
 			"getUsername",
-			messageRef.value.userId
+			messageRef.value.senderId
 		);
 		return username;
 	} catch (error) {
@@ -24,12 +37,26 @@ const getUsername = async () => {
 	}
 };
 
-const formatDate = (date) => {
-	return date.toLocaleString();
+const getTime = (date) => {
+	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const getDate = (date) => {
+	return date.toLocaleDateString("en-GB");
+};
+
+const addDivider = (date) => {
+	if (props.preDate) {
+		if (props.preDate.toLocaleDateString() == date.toLocaleDateString()) {
+			return false;
+		}
+	}
+
+	return true;
 };
 
 const checkMine = () => {
-	if (Meteor.userId() == messageRef.value.userId) {
+	if (Meteor.userId() == messageRef.value.senderId) {
 		return true;
 	}
 
@@ -43,46 +70,79 @@ const deleteMessage = async () => {
 		console.error("Error deleting message:", error);
 	}
 };
-
-onMounted(() => {
-	getUsername();
-});
 </script>
 
 <template>
-	<div v-if="!checkMine()" class="flex flex-col items-start w-[90%]">
-		<div class="text-left text-gray-400">
-			<b class="text-gray-500">{{ username }}</b> ({{
-				formatDate(message.createdAt)
-			}})
+	<li v-if="addDivider(message.createdAt)" class="w-full">
+		<div class="divider relative text-center">
+			<h6>{{ getDate(message.createdAt) }}</h6>
 		</div>
-
-		<div
-			class="flex items-center rounded p-4 py-2 mb-2 shadow-sm border border-gray-200"
-		>
-			<span class="text-gray-600 px-2 text-left">
-				{{ message.text }}
-			</span>
+	</li>
+	<li v-if="!checkMine()" class="sender">
+		<span class="time">{{ getTime(message.createdAt) }}</span>
+		<p class="bg-gray-100 text-black">{{ message.text }}</p>
+	</li>
+	<li v-else class="reply self-end">
+		<span class="time">{{ getTime(message.createdAt) }}</span>
+		<p class="bg-blue-500 text-white">{{ message.text }}</p>
+	</li>
+	<!-- <li>
+		<div class="divider">
+			<h6>Today</h6>
 		</div>
-	</div>
-	<div v-else class="self-end flex flex-col items-end w-[90%]">
-		<div class="text-left text-gray-400">
-			{{ formatDate(message.createdAt) }}
-		</div>
-
-		<div
-			class="flex items-center rounded p-4 py-2 mb-2 shadow-sm border border-gray-200 bg-blue-500 relative"
-		>
-			<button
-				class="bg-red-500 hover:bg-red-600 text-white font-bold rounded-[50%] h-4 w-4 absolute text-xs top-[-6px] right-[-6px] cursor-pointer"
-				@click="deleteMessage"
-			>
-				&times;
-			</button>
-
-			<span class="text-white px-2 text-left">
-				{{ message.text }}
-			</span>
-		</div>
-	</div>
+	</li> -->
 </template>
+
+<style>
+li {
+	list-style: none;
+	margin: 15px 0;
+	width: 60%;
+}
+
+li.sender {
+	display: block;
+	position: relative;
+}
+
+li p {
+	font-size: 14px;
+	line-height: 1.5;
+	font-weight: 400;
+	padding: 4px;
+	padding-inline: 12px;
+	display: inline-block;
+	border-radius: 10px;
+	margin-bottom: 0;
+}
+
+li.reply {
+	display: block;
+	text-align: right;
+	position: relative;
+}
+
+.time {
+	display: block;
+	color: #000;
+	font-size: 12px;
+	line-height: 1.5;
+	font-weight: 400;
+}
+
+.divider {
+	z-index: 1;
+}
+
+.divider h6 {
+	text-align: center;
+	font-weight: normal;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #222;
+	background: #fff;
+	display: inline-block;
+	padding: 0 5px;
+	margin-bottom: 0;
+}
+</style>

@@ -1,6 +1,5 @@
 import { Meteor } from "meteor/meteor";
-import { MessagesCollection } from "./messagesCollection";
 
-Meteor.publish("messages", function publishUsers() {
-	return MessagesCollection.find({ userId: Meteor.userId() });
+Meteor.publish("allUsers", async function () {
+	return await Meteor.users.find({});
 });
