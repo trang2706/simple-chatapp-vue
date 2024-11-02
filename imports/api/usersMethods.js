@@ -2,23 +2,34 @@ import { Meteor } from "meteor/meteor";
 import { check } from "meteor/check";
 import { MessagesCollection } from "./messagesCollection";
 
-async function insertUser({ username, password }) {
+/**
+ * Create new account
+ *
+ * @param {*} param0
+ * @returns
+ */
+async function insertUser({ username, email, password }) {
+	console.log("insertUser", username);
+
 	check(username, String);
+	check(email, String);
 	check(password, String);
 
 	// Check for existing username
-	const existingUser = await Accounts.findUserByUsername(username);
+	const existingEmail = await Accounts.findUserByEmail(email);
 
-	if (existingUser) {
-		throw new Meteor.Error(
-			"username-exists",
-			"This username is already taken. Please choose another."
-		);
+	if (existingEmail) {
+		throw new Meteor.Error("email-exists", "Email already exists.");
 	}
 
 	// Create the user
 	try {
-		const userId = Accounts.createUser({ username, password });
+		const userId = await Accounts.createUserAsync({
+			username,
+			email,
+			password,
+		});
+
 		return userId;
 	} catch (error) {
 		throw new Meteor.Error(
@@ -28,6 +39,12 @@ async function insertUser({ username, password }) {
 	}
 }
 
+/**
+ * Get username
+ *
+ * @param {*} userId
+ * @returns
+ */
 async function getUsername(userId) {
 	const user = await Meteor.users.findOneAsync(userId);
 
