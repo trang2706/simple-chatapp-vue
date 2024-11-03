@@ -9,7 +9,6 @@ const props = defineProps({
 
 	preDate: {
 		type: Date,
-		required: true,
 	},
 
 	index: {
@@ -21,13 +20,13 @@ const messageRef = ref({ ...props.message });
 const username = ref("");
 
 onMounted(() => {
-	getUsername();
+	getUser();
 });
 
-const getUsername = async () => {
+const getUser = async () => {
 	try {
 		username.value = await Meteor.callAsync(
-			"getUsername",
+			"getUser",
 			messageRef.value.senderId
 		);
 		return username;

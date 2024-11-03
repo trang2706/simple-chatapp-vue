@@ -8,14 +8,12 @@ import { MessagesCollection } from "./messagesCollection";
  * @param {*} param0
  * @returns
  */
-async function insertUser({ username, email, password }) {
-	console.log("insertUser", username);
-
-	check(username, String);
+async function insertUser({ name, email, password }) {
+	check(name, String);
 	check(email, String);
 	check(password, String);
 
-	// Check for existing username
+	// Check for existing email
 	const existingEmail = await Accounts.findUserByEmail(email);
 
 	if (existingEmail) {
@@ -25,9 +23,11 @@ async function insertUser({ username, email, password }) {
 	// Create the user
 	try {
 		const userId = await Accounts.createUserAsync({
-			username,
 			email,
 			password,
+			profile: {
+				name: name,
+			},
 		});
 
 		return userId;
@@ -40,15 +40,21 @@ async function insertUser({ username, email, password }) {
 }
 
 /**
- * Get username
+ * Get user
  *
  * @param {*} userId
  * @returns
  */
-async function getUsername(userId) {
-	const user = await Meteor.users.findOneAsync(userId);
+async function getUser(userId) {
+	try {
+		const user = await Meteor.users.findOneAsync(userId, {
+			fields: { _id: 1, profile: 1 },
+		});
 
-	if (user) return user.username;
+		if (user) return user;
+	} catch (error) {
+		console.error(error);
+	}
 }
 
 /**
@@ -99,6 +105,6 @@ async function getUniqueReceivers(userId) {
 
 Meteor.methods({
 	insertUser,
-	getUsername,
+	getUser,
 	getUniqueReceivers,
 });

@@ -9,12 +9,16 @@ async function insertMessage({ text, receiverId }) {
 		throw new Meteor.Error("Not authorized.");
 	}
 
-	return await MessagesCollection.insertAsync({
-		text,
-		senderId: Meteor.userId(),
-		receiverId: receiverId,
-		createdAt: new Date(),
-	});
+	try {
+		return await MessagesCollection.insertAsync({
+			text,
+			senderId: Meteor.userId(),
+			receiverId: receiverId,
+			createdAt: new Date(),
+		});
+	} catch (error) {
+		console.error(error);
+	}
 }
 
 async function removeMessage(messageId) {
@@ -24,35 +28,6 @@ async function removeMessage(messageId) {
 		throw new Meteor.Error("Not authorized.");
 	}
 	await MessagesCollection.removeAsync(messageId);
-}
-
-/**
- * Get messages
- *
- * @param {*} param0
- * @returns
- */
-async function getMessages({ senderId, receiverId }) {
-	check(senderId, String);
-	check(receiverId, String);
-
-	if (!Meteor.userId()) {
-		throw new Meteor.Error("Not authorized.");
-	}
-
-	try {
-		return await MessagesCollection.find(
-			{
-				$or: [
-					{ senderId: Meteor.userId() },
-					{ receiverId: Meteor.userId() },
-				],
-			},
-			{ sort: { createdAt: 1 } }
-		).fetch(); // Use .fetch() to get an array from the cursor
-	} catch (error) {
-		console.error(error);
-	}
 }
 
 /**
@@ -75,9 +50,32 @@ async function getLastMessage(userId) {
 	}
 }
 
+/**
+ * Get all messages by Id
+ *
+ * @param {*} userId
+ * @returns
+ */
+function getMessagesById(userId) {
+	if (!Meteor.userId()) {
+		throw new Meteor.Error("Not authorized.");
+	}
+
+	try {
+		return MessagesCollection.find(
+			{
+				$or: [{ senderId: userId }, { receiverId: userId }],
+			},
+			{ sort: { createdAt: -1 } }
+		).fetch();
+	} catch (error) {
+		console.error(error);
+	}
+}
+
 Meteor.methods({
 	insertMessage,
 	removeMessage,
 	getLastMessage,
-	getMessages,
+	getMessagesById,
 });

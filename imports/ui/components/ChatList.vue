@@ -1,19 +1,19 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch, onBeforeUnmount } from "vue";
 import { autorun } from "vue-meteor-tracker";
+import { Tracker } from "meteor/tracker";
+import { MessagesCollection } from "/imports/api/messagesCollection";
 
 const emits = defineEmits(["selectUser"]);
 
-const props = defineProps({
-	selectedUserId: {
-		type: String,
-	},
-});
-
-const username = ref("");
+const name = ref("");
 const allUsers = ref([]);
 const searchUsers = ref([]);
-const uniqueReceivers = ref([]);
+const chatUserList = ref([]);
+const selectedUserId = ref(null);
+const messages = ref([]);
+const userId = Meteor.userId();
+let trackerHandle;
 
 const usersSub = Meteor.subscribe("allUsers");
 autorun(() => {
@@ -23,20 +23,57 @@ autorun(() => {
 });
 
 onMounted(() => {
-	getUniqueReceivers();
+	getLastUserId();
+
+	// Using Tracker.autorun to set up a reactive data source
+	trackerHandle = Tracker.autorun(() => {
+		try {
+			const newMessages = MessagesCollection.find(
+				{
+					$or: [{ senderId: userId }, { receiverId: userId }],
+				},
+				{ sort: { createdAt: -1 } }
+			).fetch();
+			messages.value = newMessages; // Trigger Vue reactivity
+
+			// After updating messages, populate chatUserList
+			getContactedUsers();
+		} catch (error) {
+			console.error(error);
+		}
+	});
 });
 
-watch(username, () => {
-	searchUser(username.value);
+onBeforeUnmount(() => {
+	trackerHandle?.stop(); // Clean up on unmount
 });
 
-const getUniqueReceivers = async () => {
+watch(name, () => {
+	searchUser(name.value);
+});
+
+/**
+ * Get all users who contracted with current user
+ */
+const getContactedUsers = async () => {
 	try {
-		const userId = Meteor.userId();
-		if (userId) {
-			uniqueReceivers.value = await Meteor.callAsync(
-				"getUniqueReceivers",
-				userId
+		if (userId && messages.value) {
+			const userIdsInChat = new Set();
+
+			// const messages = await Meteor.callAsync("getMessagesById", userId);
+
+			messages.value.forEach((message) => {
+				const otherUserId =
+					message.senderId === userId
+						? message.receiverId
+						: message.senderId;
+
+				userIdsInChat.add(otherUserId);
+			});
+
+			// Fetch user data based on unique IDs
+			chatUserList.value = Array.from(userIdsInChat).map((userId) =>
+				Meteor.users.findOne({ _id: userId })
 			);
 		}
 	} catch (error) {
@@ -50,7 +87,7 @@ const getUniqueReceivers = async () => {
  */
 const searchUser = (username) => {
 	searchUsers.value = allUsers.value.filter((user) =>
-		user.username.includes(username)
+		user.profile.name.toLowerCase().includes(username.toLowerCase())
 	);
 };
 
@@ -59,17 +96,42 @@ const searchUser = (username) => {
  * @param user
  */
 const selectUser = (user) => {
-	emits("selectUser", user);
-	uniqueReceivers.value.unshift(user);
-	console.log("push user", uniqueReceivers.value);
+	if (user && user._id) {
+		emits("selectUser", user);
 
-	uniqueReceivers.value = uniqueReceivers.value.filter(
-		(id, index) => uniqueReceivers.value.indexOf(id) === index
-	);
+		selectedUserId.value = user._id;
 
-	console.log("select user", uniqueReceivers.value);
+		// Check if the user is already in chatUserList
+		if (!chatUserList.value.some((chatUser) => chatUser._id === user._id)) {
+			chatUserList.value.unshift(user); // Add selected user to chatUserList
+		}
+	}
 
-	username.value = "";
+	name.value = "";
+};
+
+/**
+ * Get last user who sent/receive message to current user
+ */
+const getLastUserId = async () => {
+	try {
+		if (userId) {
+			const lastMessage = await Meteor.callAsync(
+				"getLastMessage",
+				userId
+			);
+
+			if (lastMessage) {
+				if (lastMessage.senderId == userId) {
+					selectedUserId.value = lastMessage.receiverId;
+				} else {
+					selectedUserId.value = lastMessage.senderId;
+				}
+			}
+		}
+	} catch (error) {
+		console.error("Error fetching last receiver:", error);
+	}
 };
 </script>
 
@@ -84,25 +146,24 @@ const selectUser = (user) => {
 			>
 				<div class="flex flex-col pb-3">
 					<header class="flex items-center justify-between px-3 py-3">
-						<h1
-							class="text-2xl font-bold text-gray-800 my-3 text-orange-300"
-						>
+						<h1 class="text-2xl font-bold my-3 text-orange-300">
 							Chat App
 						</h1>
 					</header>
 					<input
-						v-model="username"
+						v-model="name"
 						type="text"
-						name="username"
+						name="name"
 						placeholder="Search"
 						autocomplete="off"
 						class="shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline w-full bg-gray-100"
 					/>
 
-					<div v-if="username">
-						<ul>
+					<div :class="{ hidden: !name }">
+						<ul class="my-1">
 							<template v-for="user of searchUsers">
 								<div
+									v-if="user && user.profile"
 									class="flex gap-2 items-center py-2 cursor-pointer hover:bg-gray-100 rounded-md"
 									@click="selectUser(user)"
 								>
@@ -114,7 +175,7 @@ const selectUser = (user) => {
 										src="/images/user.png"
 										alt="avatar"
 									/>
-									<p>{{ user.username }}</p>
+									<p>{{ user.profile.name }}</p>
 								</div>
 							</template>
 						</ul>
@@ -122,11 +183,12 @@ const selectUser = (user) => {
 				</div>
 
 				<div
-					v-if="!username"
 					class="relative overflow-y-auto flex-auto mb-3"
+					:class="{ hidden: name }"
 				>
-					<template v-for="user of uniqueReceivers">
+					<template v-for="user of chatUserList">
 						<div
+							v-if="user && user._id"
 							class="flex gap-2 items-center p-2 cursor-pointer hover:bg-gray-100 rounded-md my-1"
 							:class="
 								user._id == selectedUserId
@@ -143,7 +205,7 @@ const selectUser = (user) => {
 								src="/images/user.png"
 								alt="avatar"
 							/>
-							<p>{{ user.username }}</p>
+							<p>{{ user.profile.name }}</p>
 						</div>
 					</template>
 				</div>

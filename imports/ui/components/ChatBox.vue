@@ -12,20 +12,15 @@ const props = defineProps({
 });
 
 const userId = Meteor.userId();
-const receiverName = ref("");
+const receiver = ref(null);
 const messages = ref([]);
 let trackerHandle;
-
 const chatContainer = ref(null);
-const scrollToBottom = async () => {
-	// Ensure DOM is updated
-	await nextTick();
-	if (chatContainer.value) {
-		chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-	}
-};
 
-onMounted(() => {
+onMounted(async () => {
+	// Get user information
+	await getUser();
+
 	// Using Tracker.autorun to set up a reactive data source
 	trackerHandle = Tracker.autorun(() => {
 		const newMessages = MessagesCollection.find(
@@ -40,8 +35,6 @@ onMounted(() => {
 
 		messages.value = newMessages; // Trigger Vue reactivity
 	});
-
-	getUsername();
 });
 
 onBeforeUnmount(() => {
@@ -53,14 +46,26 @@ watch(messages, () => {
 	scrollToBottom();
 });
 
-const getUsername = async () => {
-	try {
-		receiverName.value = await Meteor.callAsync(
-			"getUsername",
-			props.receiverId
-		);
+/**
+ * Scroll to down when displaying or getting a new message
+ */
+const scrollToBottom = async () => {
+	// Ensure DOM is updated
+	await nextTick();
 
-		return receiverName.value;
+	if (chatContainer.value) {
+		chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+	}
+};
+
+/**
+ * Get user information
+ */
+const getUser = async () => {
+	try {
+		receiver.value = await Meteor.callAsync("getUser", props.receiverId);
+
+		return receiver.value;
 	} catch (error) {
 		console.error(error);
 		return null;
@@ -77,7 +82,10 @@ const getUsername = async () => {
 				<div class="p-4 border-b">
 					<div class="flex flex-wrap">
 						<div class="w-full">
-							<div class="flex items-center gap-2">
+							<div
+								v-if="receiver"
+								class="flex items-center gap-2"
+							>
 								<img
 									border="0"
 									height="36"
@@ -87,7 +95,7 @@ const getUsername = async () => {
 									alt="avatar"
 								/>
 								<p class="font-bold text-gray-700">
-									{{ receiverName }}
+									{{ receiver.profile.name }}
 								</p>
 							</div>
 						</div>
@@ -127,7 +135,10 @@ const getUsername = async () => {
 			</div>
 		</div>
 	</div>
-	<div v-else class="w-full h-full flex items-center justify-center">
+	<div
+		v-else
+		class="w-full h-full flex items-center justify-center p-4 text-center"
+	>
 		<p class="text-3xl text-blue-500">Please select someone to text!</p>
 	</div>
 </template>

@@ -1,14 +1,16 @@
 <script setup>
 import { Meteor } from "meteor/meteor";
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import GoogleIcon from "@assets/icons/google-icon.svg";
 
-// import GoogleIcon from "@assets/icons/google-icon.svg";
-// import { router } from "../router";
+const router = useRouter();
 
 const name = ref("");
 const email = ref("");
 const password = ref("");
 const error = ref("");
+const nameRef = ref(null);
 
 onMounted(() => {
 	const signUpButton = document.getElementById("signUp");
@@ -43,7 +45,7 @@ const register = async () => {
 	await Meteor.call(
 		"insertUser",
 		{
-			username: name.value.trim(),
+			name: name.value.trim(),
 			email: email.value.trim(),
 			password: password.value,
 		},
@@ -56,6 +58,9 @@ const register = async () => {
 				}
 			} else {
 				resetForm();
+
+				// Focus first input after registering
+				nameRef.value.focus();
 			}
 		}
 	);
@@ -71,28 +76,20 @@ const resetForm = () => {
 	error.value = "";
 };
 
-// const loading = ref(false);
-
-// const loginWithGoogle = () => {
-// 	loading.value = true;
-// 	// Meteor.loginWithGoogle((err) =>   {
-// 	//   if (!err) {
-// 	//     // successful authentication
-// 	// 	router.push({name: 'home'})
-// 	//   } else{
-// 	//     // failed authentication
-// 	//     console.error(err)
-// 	//   }
-// 	// });
-
-// 	Meteor.loginWithGoogle();
-// };
-
-// function configurationExists() {
-// 	return ServiceConfiguration.configurations.findOne({
-// 		service: "google",
-// 	});
-// }
+/**
+ * Login with google
+ */
+const loginWithGoogle = () => {
+	Meteor.loginWithGoogle({}, (err) => {
+		if (!err) {
+			// successful authentication
+			router.push({ name: "home" });
+		} else {
+			// failed authentication
+			console.error(err);
+		}
+	});
+};
 </script>
 
 <template>
@@ -103,6 +100,7 @@ const resetForm = () => {
 				<h1 class="mb-2">Create Account</h1>
 				<input
 					v-model="name"
+					ref="nameRef"
 					type="text"
 					placeholder="Name"
 					autocomplete="off"
@@ -124,23 +122,18 @@ const resetForm = () => {
 				/>
 				<button class="mt-4">Sign Up</button>
 
-				<span class="my-4 text-red-700">{{ error }}</span>
+				<span class="my-4 text-red-700" :class="{ hidden: !error }">{{
+					error
+				}}</span>
 
-				<!-- <span class="m-4">or</span>
+				<span class="m-4">or</span>
 				<button
-					class="p-3 w-full h-[44px] flex gap-2 items-center border rounded-[20px] bg-gray-100 justify-center border-none text-gray-800 normal-case"
-					:disabled="loading || !configurationExists"
+					class="google h-[44px] flex gap-2 items-center justify-center border-none"
 					@click="loginWithGoogle"
 				>
 					<GoogleIcon height="20" width="20" />
-					<p class="my-1">
-						{{
-							loading || !configurationExists
-								? "Please wait"
-								: "Sign in with Google"
-						}}
-					</p>
-				</button> -->
+					<p class="my-1">Sign in with Google</p>
+				</button>
 			</form>
 		</div>
 		<!-- sign up form -->
@@ -164,17 +157,21 @@ const resetForm = () => {
 					required
 				/>
 				<a href="#">Forgot your password?</a>
-				<button class="w-full">Sign In</button>
+				<button type="submit" class="w-full">Sign In</button>
 
-				<span class="my-4 text-red-700">{{ error }}</span>
+				<span class="my-4 text-red-700" :class="{ hidden: !error }">{{
+					error
+				}}</span>
 
-				<!-- <span class="my-4">or</span>
+				<span class="my-4">or</span>
 				<button
-					class="p-3 w-full h-[44px] flex gap-2 items-center border rounded-[20px] bg-gray-100 justify-center border-none text-gray-800 normal-case"
+					type="button"
+					class="google h-[44px] flex gap-2 items-center justify-center border-none"
+					@click="loginWithGoogle"
 				>
 					<GoogleIcon height="20" width="20" />
 					<p class="my-1">Sign in with Google</p>
-				</button> -->
+				</button>
 			</form>
 		</div>
 		<!-- sign in form -->
@@ -190,7 +187,7 @@ const resetForm = () => {
 					<button class="ghost" id="signIn">Sign In</button>
 				</div>
 				<div class="overlay-panel overlay-right">
-					<h1>Hello, Friend!</h1>
+					<h1>Welcome!</h1>
 					<p>Enter your personal details and start journey with us</p>
 					<button class="ghost" id="signUp">Sign Up</button>
 				</div>
@@ -206,7 +203,7 @@ h1 {
 	font-size: 20px;
 }
 
-p {
+.overlay-panel p {
 	font-size: 14px;
 	font-weight: 100;
 	line-height: 20px;
@@ -239,18 +236,27 @@ button {
 	width: 100%;
 }
 
+button.ghost {
+	background-color: transparent;
+	border-color: #ffffff;
+	width: 150px;
+}
+
+button.google {
+	background-color: #f3f4f6;
+	border-color: #f3f4f6;
+	color: #1f2937;
+	padding: 12px;
+	text-transform: none;
+	font-weight: normal;
+}
+
 button:active {
 	transform: scale(0.95);
 }
 
 button:focus {
 	outline: none;
-}
-
-button.ghost {
-	background-color: transparent;
-	border-color: #ffffff;
-	width: 150px;
 }
 
 form {

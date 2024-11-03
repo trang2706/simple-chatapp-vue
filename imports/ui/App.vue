@@ -1,47 +1,92 @@
 <script setup>
 import { subscribe, autorun } from "vue-meteor-tracker";
 import { Meteor } from "meteor/meteor";
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import ChatList from "./components/ChatList.vue";
 import ChatBox from "./components/ChatBox.vue";
 import SignInUpForm from "./components/SignInUpForm.vue";
 
 const isLogged = ref(false);
-const isOpenDropdown = ref(false);
 const selectedUserId = ref("");
-
+const isDropdownVisible = ref(false);
+const dropdownContainer = ref(null);
+const user = ref(null);
 const userId = autorun(() => Meteor.userId()).result;
 
-const logout = () => {
-	isOpenDropdown.value = false;
-	Meteor.logout();
-};
+onMounted(async () => {
+	// Accounts.onLogin fixed when loading initially and login, not show the most recent contact
+	Accounts.onLogin(async () => {
+		selectedUserId.value = await getLastUserId();
+	});
 
-onMounted(() => {
-	getLastUserId();
+	document.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+	document.removeEventListener("click", handleClickOutside);
 });
 
 watch(
 	() => userId.value,
-	(newUserId) => {
+	async (newUserId) => {
 		isLogged.value = !!newUserId;
+
+		// Get current user information
+		if (newUserId) {
+			try {
+				user.value = await Meteor.callAsync("getUser", newUserId);
+			} catch (error) {
+				console.error(error);
+				return null;
+			}
+		}
 	},
 	{ immediate: true }
 );
 
 subscribe("messages");
 
+/**
+ * Toggle dropdown when click account avatar
+ */
 const toggleDropdown = () => {
-	isOpenDropdown.value = !isOpenDropdown.value;
+	isDropdownVisible.value = !isDropdownVisible.value;
+};
+
+/**
+ * Click outside dropdown, close dropdown
+ *
+ * @param e click event
+ */
+const handleClickOutside = (e) => {
+	if (
+		dropdownContainer.value &&
+		!dropdownContainer.value.contains(e.target) &&
+		isDropdownVisible.value
+	) {
+		isDropdownVisible.value = !isDropdownVisible.value;
+	}
+};
+
+/**
+ * Logout when click logout in dropdown
+ */
+const logout = () => {
+	isDropdownVisible.value = false;
+	Meteor.logout();
 };
 
 const selectUser = (user) => {
 	selectedUserId.value = user._id;
 };
 
+/**
+ * Get last user who current user contracted
+ */
 const getLastUserId = async () => {
 	try {
-		const userId = Meteor.userId(); // Assuming the user is logged in
+		const userId = Meteor.userId();
+
 		if (userId) {
 			const lastMessage = await Meteor.callAsync(
 				"getLastMessage",
@@ -50,12 +95,14 @@ const getLastUserId = async () => {
 
 			if (lastMessage) {
 				if (lastMessage.senderId == userId) {
-					selectedUserId.value = lastMessage.receiverId;
+					return lastMessage.receiverId;
 				} else {
-					selectedUserId.value = lastMessage.senderId;
+					return lastMessage.senderId;
 				}
 			}
 		}
+
+		return null;
 	} catch (error) {
 		console.error("Error fetching last receiver:", error);
 	}
@@ -74,7 +121,7 @@ const getLastUserId = async () => {
 				class="fa-solid fa-comment w-6 h-6 p-2 text-orange-300 bg-gray-200 rounded-md mt-4"
 			></i>
 
-			<div class="relative">
+			<div ref="dropdownContainer" class="relative">
 				<img
 					border="0"
 					height="40"
@@ -86,14 +133,14 @@ const getLastUserId = async () => {
 				/>
 
 				<div
-					class="dropdown absolute top-[-82px] bg-gray-200 text-gray-700 rounded-lg py-2 px-2 font-medium w-32"
-					:class="{ hidden: !isOpenDropdown }"
-					@blur="toggleDropdown"
+					class="dropdownContainer absolute top-[-82px] bg-gray-200 text-gray-700 rounded-lg py-2 px-2 font-medium w-32 z-[1]"
+					:class="{ hidden: !isDropdownVisible }"
 				>
 					<p
+						v-if="user && user.profile"
 						class="cursor-pointer rounded hover:bg-gray-300 py-1 px-2"
 					>
-						Profile
+						{{ user.profile.name }}
 					</p>
 					<p
 						class="cursor-pointer text-red-500 hover:bg-gray-300 rounded py-1 px-2"
@@ -106,12 +153,15 @@ const getLastUserId = async () => {
 		</div>
 
 		<ChatList
+			class="animate__animated animate__fadeIn"
 			@selectUser="selectUser"
-			:selected-user-id="selectedUserId"
-			:key="selectedUserId"
 		/>
 
-		<ChatBox :receiver-id="selectedUserId" :key="selectedUserId" />
+		<ChatBox
+			class="animate__animated animate__fadeIn"
+			:receiver-id="selectedUserId"
+			:key="selectedUserId"
+		/>
 	</div>
 
 	<div
@@ -127,5 +177,3 @@ const getLastUserId = async () => {
 		<SignInUpForm />
 	</div>
 </template>
-
-<style></style>
