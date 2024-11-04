@@ -31,6 +31,8 @@ onMounted(() => {
  */
 const login = () => {
 	Meteor.loginWithPassword(email.value, password.value, (err) => {
+		error.value = "";
+
 		if (err) {
 			error.value = "Please check your credentials.";
 		}
@@ -51,6 +53,8 @@ const register = async () => {
 		},
 		(err, result) => {
 			if (err) {
+				error.value = "";
+
 				if (err.error === "email-exists") {
 					error.value = err.reason;
 				} else {
@@ -80,7 +84,7 @@ const resetForm = () => {
  * Login with google
  */
 const loginWithGoogle = () => {
-	Meteor.loginWithGoogle({}, (err) => {
+	Meteor.loginWithGoogle({ loginStyle: "redirect" }, (err) => {
 		if (!err) {
 			// successful authentication
 			router.push({ name: "home" });

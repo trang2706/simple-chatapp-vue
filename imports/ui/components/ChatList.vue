@@ -183,6 +183,41 @@ const getLastUserId = async () => {
 				</div>
 
 				<div
+					:class="{ hidden: name }"
+					class="flex gap-3 h-[84px] overflow-x-auto mb-2"
+				>
+					<template v-for="user in allUsers">
+						<div
+							v-if="user && user._id != userId"
+							class="flex flex-col gap-1 min-w-12 items-center cursor-pointer"
+							@click="selectUser(user)"
+						>
+							<img
+								border="0"
+								height="40"
+								width="40"
+								hspace="0"
+								src="/images/user.png"
+								alt="avatar"
+								class="min-h-10 min-w-10"
+							/>
+							<p
+								class="text-xs text-center overflow-hidden text-ellipsis"
+								style="
+									display: -webkit-box;
+									-webkit-line-clamp: 2;
+									-webkit-box-orient: vertical;
+									line-height: 1.2em;
+									max-height: 2.4em;
+								"
+							>
+								{{ user.profile.name }}
+							</p>
+						</div>
+					</template>
+				</div>
+
+				<div
 					class="relative overflow-y-auto flex-auto mb-3"
 					:class="{ hidden: name }"
 				>
